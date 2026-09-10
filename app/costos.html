@@ -1,0 +1,312 @@
+<title>Costo de Lectura por Pieza</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root{
+    --paper:#F1F2F0; --surface:#FFFFFF; --raise:#F7F8F6; --sunk:#E6E9E6;
+    --ink:#15191B; --body:#2C3436; --muted:#5C696C; --faint:#8B979A;
+    --line:#D2D8D6; --rule:#B9C2C0;
+    --accent:#0D5C62; --accent-soft:#DCEBEC;
+    --pos:#1D6842; --neg:#9E3527; --warn:#8A6112;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#0C1113; --surface:#151B1D; --raise:#1B2325; --sunk:#0E1415;
+      --ink:#EAF0EF; --body:#C7D2D2; --muted:#93A2A5; --faint:#6C7A7D;
+      --line:#263134; --rule:#38464A;
+      --accent:#3FBDB4; --accent-soft:#12312F;
+      --pos:#57BC85; --neg:#E0705E; --warn:#D6A54C;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0C1113; --surface:#151B1D; --raise:#1B2325; --sunk:#0E1415;
+    --ink:#EAF0EF; --body:#C7D2D2; --muted:#93A2A5; --faint:#6C7A7D;
+    --line:#263134; --rule:#38464A;
+    --accent:#3FBDB4; --accent-soft:#12312F;
+    --pos:#57BC85; --neg:#E0705E; --warn:#D6A54C;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--body);
+    font-family:"Source Serif 4",Georgia,serif;
+    font-size:17px; line-height:1.62; margin:0; padding:0 0 72px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:800px; margin:0 auto; padding:0 22px}
+
+  header{border-bottom:2px solid var(--rule); background:var(--surface); padding:26px 0 20px; margin-bottom:30px}
+  .eyebrow{
+    font-family:"Barlow Condensed",sans-serif; font-size:12px; font-weight:600;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--accent); margin:0 0 6px;
+  }
+  h1{
+    font-family:"Barlow Condensed",sans-serif; font-weight:700;
+    font-size:clamp(28px,5.5vw,40px); line-height:1.06; letter-spacing:.005em;
+    text-transform:uppercase; color:var(--ink); margin:0 0 8px; text-wrap:balance;
+  }
+  .sub{font-size:16.5px; color:var(--muted); margin:0; max-width:60ch}
+  .meta{
+    font-family:"Barlow Condensed",sans-serif; font-size:12px; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--faint); margin:12px 0 0;
+  }
+
+  h2{
+    font-family:"Barlow Condensed",sans-serif; font-weight:700;
+    font-size:22px; letter-spacing:.03em; text-transform:uppercase;
+    color:var(--ink); margin:44px 0 4px; padding-bottom:7px;
+    border-bottom:1px solid var(--rule);
+  }
+  h2 .n{color:var(--accent); margin-right:9px; font-variant-numeric:tabular-nums}
+  h3{
+    font-family:"Barlow Condensed",sans-serif; font-weight:600; font-size:16px;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+    margin:26px 0 6px;
+  }
+  p{margin:0 0 15px; max-width:66ch}
+  strong{color:var(--ink); font-weight:600}
+
+  .verdict{
+    background:var(--surface); border:1px solid var(--line);
+    border-top:3px solid var(--accent); border-radius:2px;
+    padding:22px 24px; margin:0 0 8px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 26px rgba(0,0,0,.05);
+  }
+  .verdict p:last-child{margin-bottom:0}
+  .verdict .head{
+    font-family:"Barlow Condensed",sans-serif; font-size:13px; font-weight:600;
+    letter-spacing:.11em; text-transform:uppercase; color:var(--accent);
+    margin:0 0 10px; display:block;
+  }
+  .verdict .big{
+    font-family:"Barlow Condensed",sans-serif; font-size:26px; font-weight:700;
+    line-height:1.2; color:var(--ink); margin:0 0 12px; text-wrap:balance;
+  }
+
+  .tblwrap{overflow-x:auto; margin:14px 0 6px}
+  table{border-collapse:collapse; width:100%; min-width:480px; background:var(--surface)}
+  caption{
+    caption-side:bottom; text-align:left; font-size:13.5px; color:var(--faint);
+    padding-top:8px; font-family:"Source Serif 4",serif;
+  }
+  th,td{padding:10px 14px; text-align:left; border-bottom:1px solid var(--line)}
+  thead th{
+    font-family:"Barlow Condensed",sans-serif; font-size:11.5px; font-weight:600;
+    letter-spacing:.09em; text-transform:uppercase; color:var(--faint);
+    background:var(--raise); border-bottom:1px solid var(--rule); white-space:nowrap;
+  }
+  th.r,td.r{text-align:right}
+  tbody tr:last-child td{border-bottom:0}
+  td.num{
+    font-family:"JetBrains Mono",monospace; font-variant-numeric:tabular-nums;
+    text-align:right; white-space:nowrap; font-size:14.5px; color:var(--ink);
+  }
+  td.num.lead{font-weight:700; font-size:15.5px}
+  .who{font-family:"Source Serif 4",serif; font-weight:600; color:var(--ink)}
+  .who small{
+    display:block; font-weight:400; font-size:13.5px; color:var(--muted);
+    line-height:1.4; font-family:"Source Serif 4",serif;
+  }
+  tr.pick{background:var(--accent-soft)}
+  tr.pick .who{color:var(--accent)}
+  tr.out td{color:var(--muted)}
+  tr.out .num{color:var(--neg)}
+  tr.total td{border-top:2px solid var(--rule); background:var(--raise); font-weight:600}
+  tr.total .num{font-weight:700; font-size:16px}
+  .pill{
+    font-family:"Barlow Condensed",sans-serif; font-size:10.5px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; padding:2px 7px;
+    border:1px solid currentColor; border-radius:2px; margin-left:8px; white-space:nowrap;
+  }
+  .pill.go{color:var(--accent)} .pill.no{color:var(--neg)}
+
+  .callout{
+    border-left:3px solid var(--warn); background:var(--raise);
+    padding:15px 18px; margin:18px 0; border-radius:0 2px 2px 0;
+  }
+  .callout p:last-child{margin-bottom:0}
+  .callout .head{
+    font-family:"Barlow Condensed",sans-serif; font-size:12px; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--warn);
+    display:block; margin-bottom:6px;
+  }
+
+  .bars{display:grid; gap:11px; margin:18px 0 6px}
+  .bar{display:grid; grid-template-columns:112px 1fr 82px; gap:12px; align-items:center}
+  .bar .nm{
+    font-family:"Barlow Condensed",sans-serif; font-size:13.5px; font-weight:600;
+    letter-spacing:.04em; text-transform:uppercase; color:var(--muted);
+    text-align:right; line-height:1.2;
+  }
+  .bar .track{background:var(--sunk); height:22px; border-radius:2px; overflow:hidden}
+  .bar .fill{height:100%; background:var(--accent); border-radius:2px}
+  .bar .fill.manual{background:var(--neg)}
+  .bar .val{
+    font-family:"JetBrains Mono",monospace; font-size:13.5px; font-weight:700;
+    font-variant-numeric:tabular-nums; color:var(--ink);
+  }
+
+  ul,ol{margin:0 0 15px; padding-left:22px; max-width:66ch}
+  li{margin-bottom:7px}
+  a{color:var(--accent); text-underline-offset:2px}
+  footer{margin-top:46px; padding-top:18px; border-top:1px solid var(--rule); font-size:14px; color:var(--faint)}
+  footer p{max-width:none}
+</style>
+
+<header><div class="wrap">
+  <p class="eyebrow">Análisis de costos · Lectura automática de códigos</p>
+  <h1>Costo de Lectura por Pieza</h1>
+  <p class="sub">Qué motor conviene para leer códigos troquelados y sellados sobre sanitarios cerámicos, y cuánto cuesta operarlo.</p>
+  <p class="meta">Tarifas vigentes a septiembre 2026 · Medido sobre foto real de planta</p>
+</div></header>
+
+<div class="wrap">
+
+  <div class="verdict">
+    <span class="head">Recomendación</span>
+    <p class="big">Gemini 2.5 Flash-Lite como motor principal, con escalado a Claude Haiku 4.5 en lo que no valide.</p>
+    <p>Costo esperado: <strong>USD 4.40 por cada 10.000 piezas</strong>, menos de medio centavo por unidad. El OCR clásico queda descartado — no por precio, sino porque no lee este tipo de marca.</p>
+    <p>La decisión no depende de datos que todavía no tenemos. Aun en el escenario pesimista el costo llega a USD 11 por 10.000, así que <strong>no hay razón financiera para postergarla</strong> esperando medir la tasa de acierto.</p>
+  </div>
+
+  <h2><span class="n">1</span>El OCR gratis es el peor negocio</h2>
+
+  <p>Tesseract cuesta cero y esa cifra engaña. En las pruebas sobre la pieza real no leyó <strong>ningún código completo</strong> — se probaron alrededor de 150 combinaciones de preprocesado, umbralización, segmentación y modos de reconocimiento. El mejor resultado fue algún dígito suelto.</p>
+
+  <p>Hay tres razones, y ninguna se arregla con más ajuste: la tipografía de troquel está fuera de la distribución con la que se entrenó el modelo; el texto grabado existe solo como sombreado, y todo método basado en derivadas devuelve contornos huecos en vez de glifos macizos; y la resolución de la foto de prueba deja los caracteres por debajo de lo que el motor necesita.</p>
+
+  <p>Financieramente esto importa porque la métrica correcta no es el costo por llamada sino el <strong>costo por lectura correcta</strong>. Un motor con 0% de acierto no tiene costo por lectura correcta: tiene costo infinito, porque nunca produce una. Todo el volumen cae en carga manual.</p>
+
+  <h2><span class="n">2</span>Costo por imagen</h2>
+
+  <p>Todas las cifras salen de una medición real: un recorte de 597×558 px equivale a <strong>444 tokens de imagen</strong>, más unos 220 tokens de instrucción y 90 de respuesta. El recorte automático se hace en el equipo que saca la foto y no cuesta nada; sin él, cada lectura costaría el doble.</p>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Tarifas públicas por millón de tokens. Google Cloud Vision cobra por imagen, no por token.</caption>
+      <thead><tr>
+        <th>Motor</th><th class="r">Por imagen</th><th class="r">10.000 piezas</th>
+      </tr></thead>
+      <tbody>
+        <tr class="out">
+          <td><span class="who">OCR local · Tesseract<span class="pill no">descartado</span><small>Gratis, pero no leyó ningún código completo</small></span></td>
+          <td class="num">$0</td><td class="num lead">no aplica</td>
+        </tr>
+        <tr class="pick">
+          <td><span class="who">Gemini 2.5 Flash-Lite<span class="pill go">principal</span><small>El más barato con capacidad de visión</small></span></td>
+          <td class="num">$0.000102</td><td class="num lead">$1.02</td>
+        </tr>
+        <tr>
+          <td><span class="who">Claude Haiku 4.5 · Batch<small>Mitad de precio, resultados diferidos</small></span></td>
+          <td class="num">$0.000557</td><td class="num lead">$5.57</td>
+        </tr>
+        <tr class="pick">
+          <td><span class="who">Claude Haiku 4.5<span class="pill go">escalado</span><small>Tiempo real</small></span></td>
+          <td class="num">$0.001114</td><td class="num lead">$11.14</td>
+        </tr>
+        <tr>
+          <td><span class="who">Google Cloud Vision OCR<small>OCR clásico gestionado, sin modelo de lenguaje</small></span></td>
+          <td class="num">$0.0015</td><td class="num lead">$15.00</td>
+        </tr>
+        <tr>
+          <td><span class="who">Claude Sonnet 5<small>Reservado para el residuo que falla dos veces</small></span></td>
+          <td class="num">$0.002228</td><td class="num lead">$22.28</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="n">3</span>Arquitectura por niveles</h2>
+
+  <p>Ningún motor corre solo. La validación local del formato —el código tiene estructura conocida y verificable con una expresión regular— decide automáticamente cuándo subir de nivel, sin que nadie revise nada.</p>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Escenario central: el nivel 1 resuelve el 80% y el nivel 2 resuelve tres de cada cuatro que quedan.</caption>
+      <thead><tr>
+        <th>Nivel</th><th>Qué corre</th><th class="r">Volumen</th><th class="r">Costo</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="num" style="text-align:left">0</td><td><span class="who">Realce, recorte y validación<small>En el dispositivo que captura</small></span></td><td class="num">10.000</td><td class="num">$0.00</td></tr>
+        <tr><td class="num" style="text-align:left">1</td><td><span class="who">Gemini 2.5 Flash-Lite</span></td><td class="num">10.000</td><td class="num">$1.02</td></tr>
+        <tr><td class="num" style="text-align:left">2</td><td><span class="who">Claude Haiku 4.5<small>Solo lo que no pasa la validación</small></span></td><td class="num">2.000</td><td class="num">$2.23</td></tr>
+        <tr><td class="num" style="text-align:left">3</td><td><span class="who">Claude Sonnet 5<small>Solo lo que sigue fallando</small></span></td><td class="num">500</td><td class="num">$1.11</td></tr>
+        <tr class="total"><td colspan="3">Total por 10.000 piezas</td><td class="num">$4.36</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="n">4</span>Qué pasa si la precisión es peor de lo supuesto</h2>
+
+  <p>El reparto 80 / 15 / 5 entre niveles es una estimación, no un dato medido: hay una sola foto de prueba. Conviene entonces ver cuánto cambia el resultado si esa estimación está mal.</p>
+
+  <div class="tblwrap">
+    <table>
+      <caption>El costo se mueve dentro de un rango estrecho: incluso el escenario pesimista sigue siendo trivial.</caption>
+      <thead><tr>
+        <th>Escenario</th><th class="r">Acierto nivel 1</th><th class="r">10.000 piezas</th><th class="r">Por pieza</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="who">Optimista</span></td><td class="num">95%</td><td class="num lead">$1.80</td><td class="num">$0.00018</td></tr>
+        <tr class="pick"><td><span class="who">Central</span></td><td class="num">80%</td><td class="num lead">$4.36</td><td class="num">$0.00044</td></tr>
+        <tr><td><span class="who">Pesimista</span></td><td class="num">50%</td><td class="num lead">$11.05</td><td class="num">$0.00111</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Este es el hallazgo importante del análisis: <strong>la incertidumbre sobre la precisión no cambia la decisión de compra</strong>. Entre el mejor y el peor escenario hay seis dólares por cada diez mil piezas. Cualquiera de los tres es despreciable frente a cualquier otro costo del proceso.</p>
+
+  <div class="callout">
+    <span class="head">Dónde sí pega la precisión</span>
+    <p>No en la factura de la API, sino en el <strong>residuo que hay que cargar a mano</strong>. Si un 5% falla los tres niveles, son 500 piezas por cada 10.000 que alguien tiene que tipear. A costo cargado de USD 3 por hora, eso son unos USD 4 — comparable a toda la factura de la API. Ahí es donde medir la tasa de acierto tiene retorno económico, no en elegir el motor.</p>
+  </div>
+
+  <h2><span class="n">5</span>Contra la carga manual</h2>
+
+  <p>La comparación relevante no es entre motores sino contra lo que se hace hoy. Suponiendo 10 segundos por pieza entre leer el código y tipearlo:</p>
+
+  <div class="bars">
+    <div class="bar"><span class="nm">Automático</span><span class="track"><span class="fill" style="width:3.2%"></span></span><span class="val">$4.36</span></div>
+    <div class="bar"><span class="nm">Manual $2/h</span><span class="track"><span class="fill manual" style="width:40%"></span></span><span class="val">$55.60</span></div>
+    <div class="bar"><span class="nm">Manual $3/h</span><span class="track"><span class="fill manual" style="width:60%"></span></span><span class="val">$83.30</span></div>
+    <div class="bar"><span class="nm">Manual $5/h</span><span class="track"><span class="fill manual" style="width:100%"></span></span><span class="val">$138.90</span></div>
+  </div>
+  <p style="font-size:14px; color:var(--faint); margin-top:4px">Costo por cada 10.000 piezas. Reemplazá el valor hora por el costo cargado real de tu planta.</p>
+
+  <p>El rango de ahorro va de <strong>13 a 32 veces</strong> según el costo hora. Y esa comparación es conservadora: no cuenta los errores de tipeo, que en códigos de diez dígitos sin significado son frecuentes y caros de rastrear después.</p>
+
+  <h2><span class="n">6</span>Proyección por volumen</h2>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Escenario central, USD 0.00044 por pieza. Infraestructura incluida en la columna anual.</caption>
+      <thead><tr>
+        <th>Volumen mensual</th><th class="r">Mes</th><th class="r">Año</th><th class="r">Infra</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="num" style="text-align:left">5.000</td><td class="num">$2.20</td><td class="num lead">$26.40</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">10.000</td><td class="num">$4.40</td><td class="num lead">$52.80</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">50.000</td><td class="num">$22.00</td><td class="num lead">$264.00</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">200.000</td><td class="num">$88.00</td><td class="num lead">$1,056.00</td><td class="num">$60</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>La infraestructura es casi gratuita porque el trabajo pesado —realce, recorte y validación— corre en el teléfono o la PC que captura la foto, no en un servidor. Lo único que hace falta del lado del servidor es un proxy mínimo que guarde la clave de API, y el nivel gratuito de Cloudflare Workers cubre hasta 100.000 peticiones diarias.</p>
+
+  <p>El costo de desarrollo no está en esta tabla porque depende de tu equipo. Lo que sí vale registrar: el preprocesado y la app ya están construidos y funcionando, y lo que falta es el proxy con la clave del lado del servidor.</p>
+
+  <h2><span class="n">7</span>Riesgos</h2>
+
+  <ul>
+    <li><strong>Una sola foto de prueba.</strong> Es la limitación de fondo de todo el análisis. Los costos son firmes porque salen de tokens medidos; las tasas de acierto son supuestos. Con 20 a 30 fotos etiquetadas dejan de serlo.</li>
+    <li><strong>La foto disponible está comprimida.</strong> 952×1269 en 65 KB. La original del teléfono tiene unas cuatro veces más detalle lineal, y en marcas de este contraste eso pesa. Conseguirla es gratis y puede mover la tasa de acierto sola.</li>
+    <li><strong>La iluminación de captura no está controlada.</strong> Una luz rasante convierte el relieve en contraste real y vuelve fácil todo lo que sigue. Es la intervención de mejor retorno del proyecto y es de ferretería, no de software.</li>
+    <li><strong>Las tarifas pueden moverse.</strong> El precio de entrada de Flash-Lite cayó a la mitad en los noventa días previos a este análisis. La arquitectura por niveles deja cambiar de proveedor sin tocar el resto del sistema.</li>
+    <li><strong>Google Cloud Vision no fue probado.</strong> A USD 15 por 10.000 es más caro que las alternativas con visión, pero su OCR es muy superior a Tesseract y podría resolver el sellado en tinta por sí solo. Vale una prueba de USD 1.50 antes de descartarlo del todo.</li>
+  </ul>
+
+  <footer>
+    <p>Tarifas consultadas en septiembre de 2026 en las páginas oficiales de precios de Google Cloud Vision, la API de Gemini y la API de Claude. Mediciones de tokens tomadas sobre el recorte real producido por el preprocesado. Repositorio del proyecto: <a href="https://github.com/marcado993/orc-gigix">marcado993/orc-gigix</a>.</p>
+  </footer>
+
+</div>
