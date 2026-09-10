@@ -1,0 +1,14 @@
+# Salidas del pipeline: se regeneran corriendo src/contact_sheet.py
+out/
+
+# Fotos de piezas. Ignoradas por defecto porque son material de planta
+# y este repo puede terminar siendo publico. Para versionar el set de
+# prueba, borra esta linea y confirma que el repo es privado.
+input/
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+Thumbs.db
