@@ -213,3 +213,33 @@ def rotate(img, angle_deg, border=0):
     M[1, 2] += nh / 2 - h / 2
     return cv2.warpAffine(img, M, (nw, nh), flags=cv2.INTER_CUBIC,
                           borderMode=cv2.BORDER_CONSTANT, borderValue=border)
+
+
+def dual_channel(gray, flat_sigma=41):
+    """
+    Realza las DOS marcas a la vez: grabado en relieve y sellado en tinta.
+
+    Necesitan tratamiento opuesto. El grabado existe solo como sombreado y se
+    recupera derivando. La tinta es una mancha oscura maciza: una derivada
+    responde unicamente a sus bordes, asi que el interior del trazo se pierde
+    y queda un contorno hueco. Atacar ambas con el mismo filtro sacrifica una.
+
+    Devuelve (vista, localizador):
+
+      vista       ambos canales combinados. Es lo que hay que mostrar y lo
+                  que un humano lee mejor.
+      localizador solo el canal de relieve. Es lo que hay que usar para
+                  recortar: el canal de tinta marca todo lo mas oscuro que su
+                  entorno, y un fondo desenfocado cumple esa condicion, asi
+                  que estira la caja hasta el borde del encuadre.
+    """
+    flat = flatten_illumination(gray, flat_sigma).astype(np.float32) / 255.0
+
+    relief = np.zeros_like(flat)
+    relief[1:-1, 1:-1] = (np.abs(flat[2:, 1:-1] - flat[:-2, 1:-1])
+                          + 0.5 * np.abs(flat[1:-1, 2:] - flat[1:-1, :-2]))
+    ink = np.maximum(0.0, flat.mean() - flat)
+
+    # Cada canal se estira por separado: sus rangos nativos no son comparables.
+    r8, k8 = norm8(relief), norm8(ink)
+    return np.maximum(r8, k8), r8
