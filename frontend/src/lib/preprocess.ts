@@ -160,17 +160,20 @@ export function paint(canvas: HTMLCanvasElement, data: Uint8ClampedArray, w: num
 
 /*
  * Recorte de la foto REAL (no del realce): el modelo lee mejor la textura
- * original. Nunca se amplia: interpolar no agrega detalle y el costo es
- * proporcional a los pixeles enviados.
+ * original. La caja se calcula sobre la copia reducida, pero el recorte sale
+ * de la foto a resolucion completa: si saliera de la copia, una foto de 12 MP
+ * perderia detalle que despues no se recupera. Nunca se amplia: interpolar no
+ * agrega detalle y el costo es proporcional a los pixeles enviados.
  */
-export function crop(gr: Gray, box: Box): HTMLCanvasElement {
-  const cw = box[2] - box[0] + 1;
-  const ch = box[3] - box[1] + 1;
-  const scale = Math.min(1, 900 / Math.max(cw, ch));
+export function crop(src: ImageBitmap, gr: Gray, box: Box): HTMLCanvasElement {
+  const k = src.width / gr.w;
+  const sx = box[0] * k, sy = box[1] * k;
+  const sw = (box[2] - box[0] + 1) * k, sh = (box[3] - box[1] + 1) * k;
+  const scale = Math.min(1, 900 / Math.max(sw, sh));
   const out = document.createElement("canvas");
-  out.width = Math.round(cw * scale);
-  out.height = Math.round(ch * scale);
-  out.getContext("2d")?.drawImage(gr.canvas, box[0], box[1], cw, ch, 0, 0, out.width, out.height);
+  out.width = Math.round(sw * scale);
+  out.height = Math.round(sh * scale);
+  out.getContext("2d")?.drawImage(src, sx, sy, sw, sh, 0, 0, out.width, out.height);
   return out;
 }
 
@@ -178,4 +181,15 @@ export function toJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob(b => (b ? resolve(b) : reject(new Error("no se pudo codificar el recorte"))), "image/jpeg", 0.9),
   );
+}
+
+/* Foto entera ajustada a 2048 px: lo que un proveedor usa como maximo en
+   detalle alto. Sirve para comparar contra el recorte. */
+export function fotoEntera(bmp: ImageBitmap, max = 2048): HTMLCanvasElement {
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const out = document.createElement("canvas");
+  out.width = Math.round(bmp.width * s);
+  out.height = Math.round(bmp.height * s);
+  out.getContext("2d")?.drawImage(bmp, 0, 0, out.width, out.height);
+  return out;
 }

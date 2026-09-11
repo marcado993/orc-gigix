@@ -80,7 +80,7 @@ src/enhance.py         métodos de realce, cada uno con el porqué
 src/contact_sheet.py   corre las 13 variantes sobre una foto y arma la comparativa
 src/ocr.py             motor Tesseract (conservado como evidencia del descarte)
 frontend/              app Next.js (preprocesado en el navegador, validación, costos)
-backend/               API FastAPI que lee el recorte con DeepSeek Flash
+backend/               API FastAPI que lee el recorte con DeepSeek u OpenAI
 app/lector.html        versión de una sola página, publicada como demo en Claude
 app/costos.html        análisis de costos por motor
 ```
@@ -103,7 +103,7 @@ además el binario de Tesseract y `pytesseract`.
 
 ```
 frontend/   Next.js: captura, preprocesado en el navegador, validación y costos
-backend/    FastAPI: recibe el recorte y lo lee con DeepSeek Flash
+backend/    FastAPI: recibe el recorte y lo lee con DeepSeek u OpenAI
 ```
 
 El backend existe porque la clave de API no puede vivir en el navegador:

@@ -1,5 +1,5 @@
 """
-Tests del backend. DeepSeek se reemplaza por un transporte falso: no gastan
+Tests del backend. El proveedor se reemplaza por un transporte falso: no gastan
 saldo ni necesitan clave real.
 
     pytest -q
@@ -28,6 +28,7 @@ def respuesta_ok(contenido, usage=None):
 @pytest.fixture
 def cliente(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ACCESS_CODE", raising=False)
     visto = {}
 
@@ -91,11 +92,12 @@ def test_errores_de_deepseek_se_explican(cliente, status, texto, esperado):
     assert r.status_code == esperado and texto in r.json()["error"]
 
 
-def test_sin_clave(cliente, monkeypatch):
+def test_sin_clave_explica_donde_cargarla(cliente, monkeypatch):
     tc, _ = cliente(lambda req: respuesta_ok("{}"))
     monkeypatch.delenv("DEEPSEEK_API_KEY")
     r = subir(tc)
-    assert r.status_code == 500 and "DEEPSEEK_API_KEY" in r.json()["error"]
+    assert r.status_code == 400
+    assert "Ajustes" in r.json()["error"] and "DEEPSEEK_API_KEY" in r.json()["error"]
 
 
 def test_codigo_de_acceso(cliente, monkeypatch):
@@ -116,5 +118,73 @@ def test_tipo_y_tamano(cliente):
 def test_salud_no_expone_la_clave(cliente):
     tc, _ = cliente(lambda req: respuesta_ok("{}"))
     body = tc.get("/api/salud").json()
-    assert body["clave_cargada"] is True
+    assert body["proveedores"]["deepseek"]["clave_servidor"] is True
+    assert body["proveedores"]["openai"]["clave_servidor"] is False
+    assert "gpt-5.6-luna" in body["proveedores"]["openai"]["modelos"]
     assert "sk-test" not in json.dumps(body)
+
+
+def ok_vacio(req):
+    return respuesta_ok('{"bloques":[]}')
+
+
+def test_clave_de_ajustes_tiene_prioridad(cliente):
+    tc, visto = cliente(ok_vacio)
+    assert subir(tc, headers={"x-api-key": " sk-de-ajustes "}).status_code == 200
+    assert visto["request"].headers["authorization"] == "Bearer sk-de-ajustes"
+
+
+def test_openai_gpt5_razona_poco_y_no_manda_temperature(cliente):
+    tc, visto = cliente(ok_vacio)
+    r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5.6-luna", "x-api-key": "sk-oa"})
+    assert r.status_code == 200 and r.json()["proveedor"] == "openai"
+    assert str(visto["request"].url) == "https://api.openai.com/v1/chat/completions"
+    sent = json.loads(visto["request"].content)
+    assert sent["model"] == "gpt-5.6-luna"
+    assert sent["reasoning_effort"] == "low" and "temperature" not in sent
+    assert sent["messages"][0]["content"][1]["image_url"]["detail"] == "high"
+
+
+def test_openai_gpt4o_usa_temperature_cero(cliente):
+    tc, visto = cliente(ok_vacio)
+    subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-4o", "x-api-key": "sk-oa"})
+    sent = json.loads(visto["request"].content)
+    assert sent["temperature"] == 0 and "reasoning_effort" not in sent
+
+
+def test_deepseek_no_recibe_parametros_de_openai(cliente):
+    tc, visto = cliente(ok_vacio)
+    subir(tc)
+    sent = json.loads(visto["request"].content)
+    assert "detail" not in sent["messages"][0]["content"][1]["image_url"]
+    assert "reasoning_effort" not in sent
+
+
+def test_openai_sin_clave(cliente):
+    tc, _ = cliente(ok_vacio)
+    r = subir(tc, headers={"x-proveedor": "openai"})
+    assert r.status_code == 400 and "OPENAI_API_KEY" in r.json()["error"]
+
+
+def test_modelo_fuera_de_la_lista_se_rechaza(cliente):
+    tc, visto = cliente(ok_vacio)
+    r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5.5-pro", "x-api-key": "sk-oa"})
+    assert r.status_code == 400 and "no está habilitado" in r.json()["error"]
+    assert "request" not in visto  # no se llego a llamar al proveedor
+
+
+def test_proveedor_desconocido(cliente):
+    tc, _ = cliente(ok_vacio)
+    assert subir(tc, headers={"x-proveedor": "gemini"}).status_code == 400
+
+
+def test_openai_sin_saldo_no_se_confunde_con_limite(cliente):
+    tc, _ = cliente(lambda req: httpx.Response(429, json={"error": {"code": "insufficient_quota"}}))
+    r = subir(tc, headers={"x-proveedor": "openai", "x-api-key": "sk-oa"})
+    assert r.status_code == 502 and "saldo" in r.json()["error"]
+
+
+def test_modelo_sin_acceso(cliente):
+    tc, _ = cliente(lambda req: httpx.Response(404, json={"error": "model_not_found"}))
+    r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5.4-nano", "x-api-key": "sk-oa"})
+    assert "gpt-5.4-nano" in r.json()["error"]

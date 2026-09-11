@@ -1,11 +1,13 @@
 """
-Backend del lector de piezas: recibe el recorte de la foto y lo lee con
-DeepSeek Flash.
+Backend del lector de piezas: recibe el recorte de la foto y lo lee con un
+modelo de vision (DeepSeek u OpenAI).
 
-Existe por una sola razon: la clave de API no puede vivir en el navegador,
-porque cualquiera la saca de ahi. El frontend manda solo la imagen; el prompt,
-el modelo y la clave quedan de este lado, asi el endpoint no sirve como proxy
-generico para gastar el saldo en otra cosa.
+Existe porque la clave de API no puede quedar expuesta en una pagina publica.
+El frontend manda solo la imagen; el prompt y la lista de modelos permitidos
+quedan de este lado, asi el endpoint no sirve como proxy generico.
+
+La clave sale del .env del servidor, o de la que el usuario cargue en Ajustes
+para probar otro proveedor: esa viaja en cada pedido y no se guarda aca.
 
     uvicorn main:app --reload --port 8000
 """
@@ -23,10 +25,28 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-MODEL = "deepseek-flash"
 MAX_BYTES = 4 * 1024 * 1024  # el recorte pesa ~100 KB; esto es holgura
 TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+# Solo modelos baratos con vision, mas gpt-4o para poder compararlo. Una lista
+# cerrada evita que alguien use la clave del servidor con un modelo caro.
+PROVEEDORES = {
+    "deepseek": {
+        "nombre": "DeepSeek",
+        "url": "https://api.deepseek.com/chat/completions",
+        "env": "DEEPSEEK_API_KEY",
+        "consola": "platform.deepseek.com",
+        "modelos": ["deepseek-flash"],
+    },
+    "openai": {
+        "nombre": "OpenAI",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "env": "OPENAI_API_KEY",
+        "consola": "platform.openai.com",
+        "modelos": ["gpt-5.6-luna", "gpt-5.4-nano", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4o"],
+    },
+}
+PROVEEDOR_DEFECTO = "deepseek"
 
 PROMPT = """Eres un sistema de lectura de codigos de fabricacion sobre piezas ceramicas.
 
@@ -47,17 +67,6 @@ Responde SOLO este JSON, sin texto adicional:
 donde tipo es "grabado" o "tinta", y confianza es "alta", "media" o "baja".
 Si no se lee nada, devuelve {"bloques":[]}."""
 
-# Codigos de error documentados por DeepSeek, traducidos a que hacer.
-ERRORES = {
-    400: "DeepSeek rechazó el formato del pedido.",
-    401: "La clave de DeepSeek es inválida. Revisá DEEPSEEK_API_KEY.",
-    402: "La cuenta de DeepSeek no tiene saldo. Cargá saldo en platform.deepseek.com.",
-    422: "DeepSeek rechazó un parámetro del pedido.",
-    429: "Demasiadas lecturas seguidas. Esperá unos segundos.",
-    500: "DeepSeek está con problemas. Probá de nuevo en un rato.",
-    503: "DeepSeek está saturado. Probá de nuevo en un rato.",
-}
-
 app = FastAPI(title="Lector de piezas", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
@@ -66,12 +75,12 @@ if origins:
         CORSMiddleware,
         allow_origins=origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["content-type", "x-codigo"],
+        allow_headers=["content-type", "x-codigo", "x-proveedor", "x-modelo", "x-api-key"],
     )
 
 
 async def get_http():
-    """Cliente HTTP hacia DeepSeek. Es una dependencia para poder reemplazarlo en los tests."""
+    """Cliente HTTP hacia el proveedor. Es una dependencia para poder reemplazarlo en los tests."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(90, connect=10)) as client:
         yield client
 
@@ -82,28 +91,92 @@ def error(msg: str, status: int, **extra) -> JSONResponse:
 
 @app.get("/api/salud")
 def salud():
-    """Dice si el backend está listo para leer, sin exponer la clave."""
+    """Que proveedores y modelos hay, y cuales tienen clave en el servidor. Nunca expone claves."""
     return {
         "ok": True,
-        "modelo": MODEL,
-        "clave_cargada": bool(os.getenv("DEEPSEEK_API_KEY")),
+        "proveedor_defecto": PROVEEDOR_DEFECTO,
         "codigo_requerido": bool(os.getenv("ACCESS_CODE")),
+        "proveedores": {
+            pid: {
+                "nombre": p["nombre"],
+                "modelos": p["modelos"],
+                "consola": p["consola"],
+                "clave_servidor": bool(os.getenv(p["env"])),
+            }
+            for pid, p in PROVEEDORES.items()
+        },
     }
+
+
+def armar_pedido(proveedor: str, modelo: str, tipo: str, datos: bytes) -> dict:
+    imagen = {"url": f"data:{tipo};base64,{base64.b64encode(datos).decode()}"}
+    cuerpo = {
+        "model": modelo,
+        "response_format": {"type": "json_object"},
+        "messages": [{
+            "role": "user",
+            "content": [{"type": "text", "text": PROMPT}, {"type": "image_url", "image_url": imagen}],
+        }],
+    }
+    if proveedor == "openai":
+        # Sin "high", OpenAI puede bajar la imagen a baja resolucion y el
+        # grabado se vuelve ilegible.
+        imagen["detail"] = "high"
+        if modelo.startswith("gpt-5"):
+            # Los GPT-5 razonan y cobran ese razonamiento como salida. Para
+            # transcribir no hace falta pensar mucho. Ademas rechazan
+            # temperature distinto de 1.
+            cuerpo["reasoning_effort"] = "low"
+        else:
+            cuerpo["temperature"] = 0
+    else:
+        cuerpo["temperature"] = 0
+    return cuerpo
+
+
+def explicar(proveedor: str, modelo: str, status: int, texto: str) -> tuple[str, int]:
+    """Traduce el error del proveedor a que hacer, y decide el status que ve el frontend."""
+    p = PROVEEDORES[proveedor]
+    nombre = p["nombre"]
+    if status == 401:
+        return f"La clave de {nombre} es inválida. Revisala en Ajustes o en el .env del servidor.", 502
+    if status == 402 or (status == 429 and "insufficient_quota" in texto):
+        return f"La cuenta de {nombre} no tiene saldo o llegó a su límite de gasto. Revisá {p['consola']}.", 502
+    if status == 429:
+        return "Demasiadas lecturas seguidas. Esperá unos segundos.", 429
+    if status == 404:
+        return f"{nombre} no reconoce el modelo {modelo}, o tu cuenta no tiene acceso a él.", 502
+    if status in (400, 422):
+        return f"{nombre} rechazó el pedido para {modelo}. El detalle dice por qué.", 502
+    if status >= 500:
+        return f"{nombre} está con problemas o saturado. Probá de nuevo en un rato.", 502
+    return f"{nombre} respondió con error {status}.", 502
 
 
 @app.post("/api/leer")
 async def leer(
     archivo: UploadFile = File(...),
     x_codigo: str | None = Header(default=None),
+    x_proveedor: str | None = Header(default=None),
+    x_modelo: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
     http: httpx.AsyncClient = Depends(get_http),
 ):
-    key = os.getenv("DEEPSEEK_API_KEY")
-    if not key:
-        return error("El servidor no tiene cargada la clave de DeepSeek (DEEPSEEK_API_KEY).", 500)
-
     code = os.getenv("ACCESS_CODE")
     if code and x_codigo != code:
         return error("Código de acceso incorrecto.", 401, codigo=True)
+
+    proveedor = x_proveedor or PROVEEDOR_DEFECTO
+    if proveedor not in PROVEEDORES:
+        return error(f"Proveedor desconocido: {proveedor}.", 400)
+    p = PROVEEDORES[proveedor]
+    modelo = x_modelo or p["modelos"][0]
+    if modelo not in p["modelos"]:
+        return error(f"El modelo {modelo} no está habilitado para {p['nombre']}.", 400)
+
+    key = (x_api_key or "").strip() or os.getenv(p["env"])
+    if not key:
+        return error(f"No hay clave de {p['nombre']}: cargala en Ajustes o en el .env del servidor ({p['env']}).", 400)
 
     tipo = (archivo.content_type or "").split(";")[0].strip()
     if tipo not in TYPES:
@@ -115,41 +188,35 @@ async def leer(
     if len(datos) > MAX_BYTES:
         return error("La imagen supera los 4 MB. Mandá el recorte, no la foto entera.", 413)
 
-    cuerpo = {
-        "model": MODEL,
-        "temperature": 0,
-        "response_format": {"type": "json_object"},
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": PROMPT},
-                {"type": "image_url", "image_url": {
-                    "url": f"data:{tipo};base64,{base64.b64encode(datos).decode()}",
-                }},
-            ],
-        }],
-    }
-
     try:
-        r = await http.post(DEEPSEEK_URL, json=cuerpo, headers={"authorization": f"Bearer {key}"})
+        r = await http.post(
+            p["url"],
+            json=armar_pedido(proveedor, modelo, tipo, datos),
+            headers={"authorization": f"Bearer {key}"},
+        )
     except httpx.HTTPError as e:
-        return error(f"No se pudo contactar a DeepSeek: {e}", 502)
+        return error(f"No se pudo contactar a {p['nombre']}: {e}", 502)
 
     if r.status_code != 200:
-        msg = ERRORES.get(r.status_code, f"DeepSeek respondió con error {r.status_code}.")
-        return error(msg, 429 if r.status_code == 429 else 502, detalle=r.text[:400])
+        msg, status = explicar(proveedor, modelo, r.status_code, r.text)
+        return error(msg, status, detalle=r.text[:400])
 
     try:
         data = r.json()
         contenido = data["choices"][0]["message"]["content"] or ""
     except (ValueError, KeyError, IndexError, TypeError):
-        return error("DeepSeek devolvió una respuesta ilegible.", 502, detalle=r.text[:400])
+        return error(f"{p['nombre']} devolvió una respuesta ilegible.", 502, detalle=r.text[:400])
 
     bloques = parse_bloques(contenido)
     if bloques is None:
-        return error("DeepSeek no devolvió el JSON esperado.", 502, detalle=str(contenido)[:400])
+        return error(f"{p['nombre']} no devolvió el JSON esperado.", 502, detalle=str(contenido)[:400])
 
-    return {"bloques": bloques, "modelo": data.get("model", MODEL), "uso": data.get("usage")}
+    return {
+        "bloques": bloques,
+        "proveedor": proveedor,
+        "modelo": data.get("model", modelo),
+        "uso": data.get("usage"),
+    }
 
 
 def parse_bloques(contenido: str):

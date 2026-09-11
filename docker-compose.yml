@@ -6,7 +6,10 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Falta DEEPSEEK_API_KEY en el archivo .env}
+      # Las claves del servidor son opcionales: tambien se pueden cargar desde
+      # Ajustes, en la app. Sin ninguna de las dos, la app avisa que falta.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ACCESS_CODE: ${ACCESS_CODE:-}
     # Sin puertos publicados: solo el frontend le habla, por la red interna.
     healthcheck:

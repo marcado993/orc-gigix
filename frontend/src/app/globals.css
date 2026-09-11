@@ -163,3 +163,41 @@ tr.dead .big { color: var(--bad); }
 ol.steps { margin: 0; padding: 12px 15px 15px 32px; font-size: 14px; color: var(--muted); }
 ol.steps li { margin-bottom: 6px; }
 ol.steps b { color: var(--ink); font-weight: 600; }
+
+/* Ajustes */
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 15px 4px; }
+.form .full { grid-column: 1 / -1; }
+.form label { display: block; min-width: 0; }
+select, .keyrow input, .qty input {
+  width: 100%; font: inherit; font-size: 15px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 3px; padding: 9px 10px; min-width: 0;
+}
+select:focus-visible, .keyrow input:focus-visible, .qty input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.keyrow { display: flex; gap: 8px; }
+.keyrow input { flex: 1; font-family: var(--mono); }
+.btn.sm { flex: none; font-size: 14px; padding: 9px 12px; }
+.keystate { font-family: var(--cond); font-size: 12.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; margin: 7px 0 0; }
+.keystate.ok { color: var(--ok); } .keystate.bad { color: var(--bad); }
+.panel > .note:last-child { padding-top: 10px; }
+
+/* Comparar */
+.check { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; margin: -6px 0 20px; cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.check small { color: var(--muted); }
+.result.compare .mono { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+
+/* Proyeccion */
+.qtys { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 15px 0; }
+.qty { display: block; min-width: 0; }
+.qty input { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.versus { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); margin: 14px 15px; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.side { background: var(--surface); padding: 12px 13px; min-width: 0; }
+.side.win { background: var(--accent-soft); }
+.versus.three { grid-template-columns: repeat(3, 1fr); }
+.side b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
+.side.win b { color: var(--accent); }
+.side small { font-size: 12px; color: var(--muted); display: block; line-height: 1.35; }
+.verdict-line { font-size: 14.5px; margin: 0; padding: 0 15px 14px; }
+.verdict-line b { font-weight: 600; }
+.panel .tblwrap + .note { padding-top: 12px; }
+@media (max-width: 520px) { .form, .qtys, .versus, .versus.three { grid-template-columns: 1fr; } }
