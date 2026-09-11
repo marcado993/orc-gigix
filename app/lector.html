@@ -453,7 +453,9 @@ function validate(t) {
 var PROMPT_TOK = 220, OUT_TOK = 90;
 var ENGINES = [
   { id:"tess",  name:"OCR local (Tesseract)", sub:"gratis, pero no leyó el grabado en las pruebas", flat:0, dead:true },
-  { id:"flash", name:"Gemini 2.5 Flash-Lite", sub:"el más barato con visión", in:0.10, out:0.40 },
+  { id:"dsOff", name:"DeepSeek Flash · fuera de pico", sub:"el más barato vigente; cifra al tope de 1.024 tokens por imagen", in:0.15, out:0.60, imgTok:1024 },
+  { id:"dsPk",  name:"DeepSeek Flash · hora pico", sub:"lun–vie, 01–04 y 06–10 UTC", in:0.30, out:1.20, imgTok:1024 },
+  { id:"gem31", name:"Gemini 3.1 Flash-Lite", sub:"reemplazo de 2.5 Flash-Lite, que se retira el 16 oct 2026", in:0.25, out:1.50 },
   { id:"haikuB",name:"Claude Haiku 4.5 · Batch", sub:"mitad de precio, resultados diferidos", in:0.50, out:2.50 },
   { id:"haiku", name:"Claude Haiku 4.5", sub:"tiempo real", in:1.00, out:5.00, now:true },
   { id:"gvis",  name:"Google Cloud Vision OCR", sub:"OCR clásico, sin modelo de lenguaje", flat:0.0015 },
@@ -468,7 +470,10 @@ function money(v) {
 
 function costOf(e, imgTok) {
   if (e.flat !== undefined) return e.flat;
-  return (imgTok + PROMPT_TOK) / 1e6 * e.in + OUT_TOK / 1e6 * e.out;
+  /* DeepSeek no publica su formula de tokens por imagen, solo el tope:
+     se usa el tope para no subestimar. */
+  var t = e.imgTok !== undefined ? e.imgTok : imgTok;
+  return (t + PROMPT_TOK) / 1e6 * e.in + OUT_TOK / 1e6 * e.out;
 }
 
 function renderCosts(imgTok) {

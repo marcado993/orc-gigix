@@ -163,9 +163,9 @@
 
   <div class="verdict">
     <span class="head">Recomendación</span>
-    <p class="big">Gemini 2.5 Flash-Lite como motor principal, con escalado a Claude Haiku 4.5 en lo que no valide.</p>
-    <p>Costo esperado: <strong>USD 4.40 por cada 10.000 piezas</strong>, menos de medio centavo por unidad. El OCR clásico queda descartado — no por precio, sino porque no lee este tipo de marca.</p>
-    <p>La decisión no depende de datos que todavía no tenemos. Aun en el escenario pesimista el costo llega a USD 11 por 10.000, así que <strong>no hay razón financiera para postergarla</strong> esperando medir la tasa de acierto.</p>
+    <p class="big">DeepSeek Flash como motor principal, con escalado a Claude Haiku 4.5 en lo que no valide.</p>
+    <p>Costo esperado: <strong>USD 5.75 por cada 10.000 piezas</strong> en el escenario central, calculado con el tope de tokens por imagen de DeepSeek — el costo real debería quedar por debajo. El OCR clásico queda descartado — no por precio, sino porque no lee este tipo de marca.</p>
+    <p>La decisión no depende de datos que todavía no tenemos. Aun en el escenario pesimista el costo llega a USD 12 por 10.000, así que <strong>no hay razón financiera para postergarla</strong> esperando medir la tasa de acierto. Lo que sí conviene es correr la prueba de 20 a 30 fotos sobre DeepSeek, Gemini 3.1 Flash-Lite y Haiku antes de fijar el motor principal: los tres cuestan menos de USD 5 por 10.000 y lo que los separa es cuánto aciertan.</p>
   </div>
 
   <h2><span class="n">1</span>El OCR gratis es el peor negocio</h2>
@@ -182,7 +182,7 @@
 
   <div class="tblwrap">
     <table>
-      <caption>Tarifas públicas por millón de tokens. Google Cloud Vision cobra por imagen, no por token.</caption>
+      <caption>Tarifas públicas por millón de tokens. Google Cloud Vision cobra por imagen, no por token. DeepSeek no publica su fórmula de tokens por imagen, solo el tope de 1.024: sus cifras son el máximo posible.</caption>
       <thead><tr>
         <th>Motor</th><th class="r">Por imagen</th><th class="r">10.000 piezas</th>
       </tr></thead>
@@ -192,7 +192,19 @@
           <td class="num">$0</td><td class="num lead">no aplica</td>
         </tr>
         <tr class="pick">
-          <td><span class="who">Gemini 2.5 Flash-Lite<span class="pill go">principal</span><small>El más barato con capacidad de visión</small></span></td>
+          <td><span class="who">DeepSeek Flash · fuera de hora pico<span class="pill go">principal</span><small>El más barato con visión entre los vigentes. Mitad de precio fuera de las horas pico</small></span></td>
+          <td class="num">≤ $0.000241</td><td class="num lead">≤ $2.41</td>
+        </tr>
+        <tr>
+          <td><span class="who">DeepSeek Flash · hora pico<small>Lunes a viernes, 01–04 y 06–10 UTC</small></span></td>
+          <td class="num">≤ $0.000481</td><td class="num lead">≤ $4.81</td>
+        </tr>
+        <tr>
+          <td><span class="who">Gemini 3.1 Flash-Lite<small>Reemplazo oficial de 2.5 Flash-Lite. El rango depende de la resolución de imagen configurada</small></span></td>
+          <td class="num">$0.00030–0.00047</td><td class="num lead">$3.01–4.70</td>
+        </tr>
+        <tr class="out">
+          <td><span class="who">Gemini 2.5 Flash-Lite<span class="pill no">se retira</span><small>Google lo da de baja desde el 16 de octubre de 2026</small></span></td>
           <td class="num">$0.000102</td><td class="num lead">$1.02</td>
         </tr>
         <tr>
@@ -227,10 +239,10 @@
       </tr></thead>
       <tbody>
         <tr><td class="num" style="text-align:left">0</td><td><span class="who">Realce, recorte y validación<small>En el dispositivo que captura</small></span></td><td class="num">10.000</td><td class="num">$0.00</td></tr>
-        <tr><td class="num" style="text-align:left">1</td><td><span class="who">Gemini 2.5 Flash-Lite</span></td><td class="num">10.000</td><td class="num">$1.02</td></tr>
+        <tr><td class="num" style="text-align:left">1</td><td><span class="who">DeepSeek Flash<small>Fuera de hora pico; cifra al tope de tokens por imagen</small></span></td><td class="num">10.000</td><td class="num">$2.41</td></tr>
         <tr><td class="num" style="text-align:left">2</td><td><span class="who">Claude Haiku 4.5<small>Solo lo que no pasa la validación</small></span></td><td class="num">2.000</td><td class="num">$2.23</td></tr>
         <tr><td class="num" style="text-align:left">3</td><td><span class="who">Claude Sonnet 5<small>Solo lo que sigue fallando</small></span></td><td class="num">500</td><td class="num">$1.11</td></tr>
-        <tr class="total"><td colspan="3">Total por 10.000 piezas</td><td class="num">$4.36</td></tr>
+        <tr class="total"><td colspan="3">Total por 10.000 piezas</td><td class="num">$5.75</td></tr>
       </tbody>
     </table>
   </div>
@@ -246,14 +258,14 @@
         <th>Escenario</th><th class="r">Acierto nivel 1</th><th class="r">10.000 piezas</th><th class="r">Por pieza</th>
       </tr></thead>
       <tbody>
-        <tr><td><span class="who">Optimista</span></td><td class="num">95%</td><td class="num lead">$1.80</td><td class="num">$0.00018</td></tr>
-        <tr class="pick"><td><span class="who">Central</span></td><td class="num">80%</td><td class="num lead">$4.36</td><td class="num">$0.00044</td></tr>
-        <tr><td><span class="who">Pesimista</span></td><td class="num">50%</td><td class="num lead">$11.05</td><td class="num">$0.00111</td></tr>
+        <tr><td><span class="who">Optimista</span></td><td class="num">95%</td><td class="num lead">$3.19</td><td class="num">$0.00032</td></tr>
+        <tr class="pick"><td><span class="who">Central</span></td><td class="num">80%</td><td class="num lead">$5.75</td><td class="num">$0.00058</td></tr>
+        <tr><td><span class="who">Pesimista</span></td><td class="num">50%</td><td class="num lead">$12.44</td><td class="num">$0.00124</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>Este es el hallazgo importante del análisis: <strong>la incertidumbre sobre la precisión no cambia la decisión de compra</strong>. Entre el mejor y el peor escenario hay seis dólares por cada diez mil piezas. Cualquiera de los tres es despreciable frente a cualquier otro costo del proceso.</p>
+  <p>Este es el hallazgo importante del análisis: <strong>la incertidumbre sobre la precisión no cambia la decisión de compra</strong>. Entre el mejor y el peor escenario hay nueve dólares por cada diez mil piezas. Cualquiera de los tres es despreciable frente a cualquier otro costo del proceso.</p>
 
   <div class="callout">
     <span class="head">Dónde sí pega la precisión</span>
@@ -265,28 +277,28 @@
   <p>La comparación relevante no es entre motores sino contra lo que se hace hoy. Suponiendo 10 segundos por pieza entre leer el código y tipearlo:</p>
 
   <div class="bars">
-    <div class="bar"><span class="nm">Automático</span><span class="track"><span class="fill" style="width:3.2%"></span></span><span class="val">$4.36</span></div>
+    <div class="bar"><span class="nm">Automático</span><span class="track"><span class="fill" style="width:4.1%"></span></span><span class="val">$5.75</span></div>
     <div class="bar"><span class="nm">Manual $2/h</span><span class="track"><span class="fill manual" style="width:40%"></span></span><span class="val">$55.60</span></div>
     <div class="bar"><span class="nm">Manual $3/h</span><span class="track"><span class="fill manual" style="width:60%"></span></span><span class="val">$83.30</span></div>
     <div class="bar"><span class="nm">Manual $5/h</span><span class="track"><span class="fill manual" style="width:100%"></span></span><span class="val">$138.90</span></div>
   </div>
   <p style="font-size:14px; color:var(--faint); margin-top:4px">Costo por cada 10.000 piezas. Reemplazá el valor hora por el costo cargado real de tu planta.</p>
 
-  <p>El rango de ahorro va de <strong>13 a 32 veces</strong> según el costo hora. Y esa comparación es conservadora: no cuenta los errores de tipeo, que en códigos de diez dígitos sin significado son frecuentes y caros de rastrear después.</p>
+  <p>El rango de ahorro va de <strong>10 a 24 veces</strong> según el costo hora. Y esa comparación es conservadora: no cuenta los errores de tipeo, que en códigos de diez dígitos sin significado son frecuentes y caros de rastrear después.</p>
 
   <h2><span class="n">6</span>Proyección por volumen</h2>
 
   <div class="tblwrap">
     <table>
-      <caption>Escenario central, USD 0.00044 por pieza. Infraestructura incluida en la columna anual.</caption>
+      <caption>Escenario central, USD 0.000575 por pieza. Infraestructura incluida en la columna anual.</caption>
       <thead><tr>
         <th>Volumen mensual</th><th class="r">Mes</th><th class="r">Año</th><th class="r">Infra</th>
       </tr></thead>
       <tbody>
-        <tr><td class="num" style="text-align:left">5.000</td><td class="num">$2.20</td><td class="num lead">$26.40</td><td class="num">$0</td></tr>
-        <tr><td class="num" style="text-align:left">10.000</td><td class="num">$4.40</td><td class="num lead">$52.80</td><td class="num">$0</td></tr>
-        <tr><td class="num" style="text-align:left">50.000</td><td class="num">$22.00</td><td class="num lead">$264.00</td><td class="num">$0</td></tr>
-        <tr><td class="num" style="text-align:left">200.000</td><td class="num">$88.00</td><td class="num lead">$1,056.00</td><td class="num">$60</td></tr>
+        <tr><td class="num" style="text-align:left">5.000</td><td class="num">$2.88</td><td class="num lead">$34.50</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">10.000</td><td class="num">$5.75</td><td class="num lead">$69.00</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">50.000</td><td class="num">$28.75</td><td class="num lead">$345.00</td><td class="num">$0</td></tr>
+        <tr><td class="num" style="text-align:left">200.000</td><td class="num">$115.00</td><td class="num lead">$1,380.00</td><td class="num">$60</td></tr>
       </tbody>
     </table>
   </div>
@@ -295,18 +307,35 @@
 
   <p>El costo de desarrollo no está en esta tabla porque depende de tu equipo. Lo que sí vale registrar: el preprocesado y la app ya están construidos y funcionando, y lo que falta es el proxy con la clave del lado del servidor.</p>
 
-  <h2><span class="n">7</span>Riesgos</h2>
+  <h2><span class="n">7</span>Cómo contratar la API de DeepSeek</h2>
+
+  <p>DeepSeek funciona con saldo prepago: se carga dinero y cada lectura lo descuenta. No hay suscripción ni cargo mensual, y el saldo no vence.</p>
+
+  <ol>
+    <li>Crear la cuenta en <a href="https://platform.deepseek.com">platform.deepseek.com</a> con correo o teléfono.</li>
+    <li>En la sección de facturación, cargar saldo. El pago con tarjeta internacional pasa por la pasarela internacional de Alipay; algunos bancos rechazan pagos a procesadores chinos, así que si la tarjeta falla conviene avisar al banco o probar con otra.</li>
+    <li>Arrancar con <strong>USD 10</strong>. Al tope de tokens y fuera de hora pico alcanzan para unas <strong>41.000 lecturas</strong>: sobra para la prueba de 20 a 30 fotos y para meses de operación a 10.000 piezas por mes.</li>
+    <li>Crear una clave en la sección de API keys. DeepSeek la muestra una sola vez: copiarla en ese momento.</li>
+    <li>Guardar la clave en el proxy del servidor, nunca dentro de la app. La API es compatible con el formato de OpenAI: dirección base <code>https://api.deepseek.com</code>, modelo <code>deepseek-flash</code>, y la imagen se manda como <code>image_url</code> en base64.</li>
+  </ol>
+
+  <p>Las horas pico son de 01:00 a 04:00 y de 06:00 a 10:00 UTC, de lunes a viernes. En Ecuador (UTC−5) eso cae entre las 20:00 y las 23:00 y entre la 01:00 y las 05:00: <strong>un turno de planta diurno queda entero fuera de hora pico</strong>, así que la tarifa a la mitad es la que aplica en la práctica.</p>
+
+  <h2><span class="n">8</span>Riesgos</h2>
 
   <ul>
     <li><strong>Una sola foto de prueba.</strong> Es la limitación de fondo de todo el análisis. Los costos son firmes porque salen de tokens medidos; las tasas de acierto son supuestos. Con 20 a 30 fotos etiquetadas dejan de serlo.</li>
     <li><strong>La foto disponible está comprimida.</strong> 952×1269 en 65 KB. La original del teléfono tiene unas cuatro veces más detalle lineal, y en marcas de este contraste eso pesa. Conseguirla es gratis y puede mover la tasa de acierto sola.</li>
     <li><strong>La iluminación de captura no está controlada.</strong> Una luz rasante convierte el relieve en contraste real y vuelve fácil todo lo que sigue. Es la intervención de mejor retorno del proyecto y es de ferretería, no de software.</li>
-    <li><strong>Las tarifas pueden moverse.</strong> El precio de entrada de Flash-Lite cayó a la mitad en los noventa días previos a este análisis. La arquitectura por niveles deja cambiar de proveedor sin tocar el resto del sistema.</li>
+    <li><strong>Las tarifas pueden moverse.</strong> En los noventa días previos a este análisis hubo bajas de precio y también un reemplazo de modelo 2,5 veces más caro. Conviene revisar la tabla cada trimestre.</li>
+    <li><strong>La visión de DeepSeek es nueva.</strong> Salió en agosto de 2026 como experimental y no hay mediciones de acierto sobre texto grabado. Por eso la prueba de 20 a 30 fotos tiene que incluirlo antes de fijarlo como motor principal.</li>
+    <li><strong>DeepSeek procesa en servidores en China.</strong> Si el cliente tiene exigencias sobre dónde se procesan las fotos de planta, conviene confirmarlo antes; la alternativa directa es Gemini 3.1 Flash-Lite, a un costo similar.</li>
+    <li><strong>El motor principal de la versión anterior se retira.</strong> Gemini 2.5 Flash-Lite deja de estar disponible desde el 16 de octubre de 2026. La arquitectura por niveles permite cambiar de proveedor sin tocar el resto del sistema, que es justamente lo que pasó acá.</li>
     <li><strong>Google Cloud Vision no fue probado.</strong> A USD 15 por 10.000 es más caro que las alternativas con visión, pero su OCR es muy superior a Tesseract y podría resolver el sellado en tinta por sí solo. Vale una prueba de USD 1.50 antes de descartarlo del todo.</li>
   </ul>
 
   <footer>
-    <p>Tarifas consultadas en septiembre de 2026 en las páginas oficiales de precios de Google Cloud Vision, la API de Gemini y la API de Claude. Mediciones de tokens tomadas sobre el recorte real producido por el preprocesado. Repositorio del proyecto: <a href="https://github.com/marcado993/orc-gigix">marcado993/orc-gigix</a>.</p>
+    <p>Tarifas consultadas en septiembre de 2026 en las páginas oficiales de precios de Google Cloud Vision, la API de Gemini, la API de DeepSeek y la API de Claude. Mediciones de tokens tomadas sobre el recorte real producido por el preprocesado. Repositorio del proyecto: <a href="https://github.com/marcado993/orc-gigix">marcado993/orc-gigix</a>.</p>
   </footer>
 
 </div>
