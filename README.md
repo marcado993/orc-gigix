@@ -52,14 +52,23 @@ instrucción y ~90 de respuesta.
 | Motor | Por imagen | 10.000 |
 |---|---:|---:|
 | OCR local (Tesseract) | $0 | no funciona |
-| Gemini 2.5 Flash-Lite | $0.000102 | $1.02 |
+| **DeepSeek Flash, fuera de hora pico** | ≤ $0.000241 | **≤ $2.41** |
+| DeepSeek Flash, hora pico | ≤ $0.000481 | ≤ $4.81 |
+| Gemini 3.1 Flash-Lite | $0.00030–0.00047 | $3.01–4.70 |
+| Gemini 2.5 Flash-Lite (se retira el 16 oct 2026) | $0.000102 | $1.02 |
 | Claude Haiku 4.5 · Batch | $0.000557 | $5.57 |
 | Claude Haiku 4.5 | $0.001114 | $11.14 |
 | Google Cloud Vision OCR | $0.0015 | $15.00 |
 | Claude Sonnet 5 | $0.002228 | $22.28 |
 
-Escalado por tiers, con validación local decidiendo cuándo subir de nivel:
-**≈ $4.40 por 10.000**. El reparto entre tiers es una estimación, no un dato.
+DeepSeek no publica su fórmula de tokens por imagen, solo el tope de 1.024:
+sus cifras son el máximo posible. Servido desde `worker/`, la app muestra
+los tokens reales que DeepSeek factura.
+
+Escalado por niveles (DeepSeek → Haiku → Sonnet), con validación local
+decidiendo cuándo subir: **≈ $5.75 por 10.000** en el escenario central. El
+reparto entre niveles es una estimación, no un dato. Detalle completo en
+`app/costos.html`.
 
 ## Estructura
 
@@ -68,6 +77,8 @@ src/enhance.py         métodos de realce, cada uno con el porqué
 src/contact_sheet.py   corre las 13 variantes sobre una foto y arma la comparativa
 src/ocr.py             motor Tesseract (conservado como evidencia del descarte)
 app/lector.html        app web: preprocesado en el cliente + lectura con modelo
+app/costos.html        análisis de costos por motor
+worker/                servidor: sirve la app y llama a DeepSeek con la clave
 ```
 
 ## Uso
