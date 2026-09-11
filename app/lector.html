@@ -260,7 +260,7 @@
       <div class="panel-hd"><h2>Para usarlo desde otra PC</h2></div>
       <ol class="steps">
         <li>Abrí el menú <b>Share</b> arriba a la derecha de esta página y compartila. Es privada hasta que lo hagas.</li>
-        <li>Quien la abra necesita <b>cuenta de Claude</b>: la lectura corre contra la suya, no contra la tuya.</li>
+        <li>En la demo publicada en Claude, quien la abra necesita <b>cuenta de Claude</b>. Servida desde tu propio servidor (carpeta <code>worker/</code> del repo) no hace falta: alcanza con el link y el código de acceso.</li>
         <li>Funciona igual en celular y en PC. En celular, <b>Tomar foto</b> abre la cámara directo.</li>
       </ol>
       <p class="note">Para producción real esto cambia: la app llama a tu propia API a través de un proxy con la key del lado del servidor. La key nunca puede vivir dentro de la página.</p>
@@ -276,6 +276,11 @@
 var $ = function (id) { return document.getElementById(id); };
 var statusEl = $("status");
 var sample = null, busy = false;
+
+/* Servida por el worker (worker/): no hay window.claude y la pagina viene por
+   http(s). Ahi la lectura va a /api/leer, que tiene la clave de DeepSeek. */
+var BACKEND = !window.claude && /^https?:$/.test(location.protocol);
+function nowEngine() { return BACKEND ? "dsOff" : "haiku"; }
 
 function say(msg, kind) {
   statusEl.textContent = msg;
@@ -457,7 +462,7 @@ var ENGINES = [
   { id:"dsPk",  name:"DeepSeek Flash · hora pico", sub:"lun–vie, 01–04 y 06–10 UTC", in:0.30, out:1.20, imgTok:1024 },
   { id:"gem31", name:"Gemini 3.1 Flash-Lite", sub:"reemplazo de 2.5 Flash-Lite, que se retira el 16 oct 2026", in:0.25, out:1.50 },
   { id:"haikuB",name:"Claude Haiku 4.5 · Batch", sub:"mitad de precio, resultados diferidos", in:0.50, out:2.50 },
-  { id:"haiku", name:"Claude Haiku 4.5", sub:"tiempo real", in:1.00, out:5.00, now:true },
+  { id:"haiku", name:"Claude Haiku 4.5", sub:"tiempo real", in:1.00, out:5.00 },
   { id:"gvis",  name:"Google Cloud Vision OCR", sub:"OCR clásico, sin modelo de lenguaje", flat:0.0015 },
   { id:"sonnet",name:"Claude Sonnet 5", sub:"solo como escalado de lo que falla", in:2.00, out:10.00 }
 ];
@@ -476,24 +481,27 @@ function costOf(e, imgTok) {
   return (t + PROMPT_TOK) / 1e6 * e.in + OUT_TOK / 1e6 * e.out;
 }
 
+var TYPICAL_TOK = 444;  /* recorte medido sobre la foto de prueba */
+
 function renderCosts(imgTok) {
   var body = $("costBody");
+  var calcTok = imgTok || TYPICAL_TOK;
   body.textContent = "";
   ENGINES.forEach(function (e) {
     var tr = document.createElement("tr");
-    if (e.now) tr.className = "now";
+    if (e.id === nowEngine()) tr.className = "now";
     if (e.dead) tr.className = "dead";
     var td1 = document.createElement("td");
     var nm = document.createElement("span");
     nm.className = "who";
     nm.textContent = e.name;
-    if (e.now) { var t1 = document.createElement("span"); t1.className = "tag now"; t1.textContent = "en uso"; nm.append(t1); }
+    if (e.id === nowEngine()) { var t1 = document.createElement("span"); t1.className = "tag now"; t1.textContent = "en uso"; nm.append(t1); }
     if (e.dead) { var t2 = document.createElement("span"); t2.className = "tag no"; t2.textContent = "no sirve"; nm.append(t2); }
     var sb = document.createElement("small");
     sb.textContent = e.sub;
     nm.append(sb);
     td1.append(nm);
-    var c = costOf(e, imgTok);
+    var c = costOf(e, calcTok);
     var td2 = document.createElement("td");
     td2.className = "num";
     td2.textContent = money(c);
@@ -506,7 +514,7 @@ function renderCosts(imgTok) {
   $("costNote").innerHTML = imgTok
     ? "Calculado sobre <b>" + imgTok.toLocaleString("es") + " tokens</b> de la foto que acabás de procesar, más " +
       PROMPT_TOK + " de instrucción y " + OUT_TOK + " de respuesta."
-    : "Estimado sobre un recorte típico de <b>440 tokens</b>. Procesá una foto y la tabla se recalcula con tus números reales.";
+    : "Estimado sobre un recorte típico de <b>" + TYPICAL_TOK + " tokens</b>. Procesá una foto y la tabla se recalcula con tus números reales.";
 }
 
 function meter(w, h, fullW, fullH) {
@@ -585,6 +593,40 @@ function render(blocks) {
   });
 }
 
+/* Lectura contra el servidor propio. El prompt vive en el servidor: aca solo
+   viaja la imagen. Si el servidor pide codigo de acceso, se pregunta una vez
+   y queda guardado en este navegador. */
+async function leerServidor(blob, retry) {
+  var code = "";
+  try { code = localStorage.getItem("codigoAcceso") || ""; } catch (e) {}
+  var r = await fetch("/api/leer", {
+    method: "POST",
+    headers: { "content-type": "image/jpeg", "x-codigo": code },
+    body: blob
+  });
+  var data = await r.json().catch(function () { return { error: "El servidor devolvió una respuesta ilegible." }; });
+  if (r.status === 401 && data.codigo && retry) {
+    var c = window.prompt("Código de acceso para leer piezas:");
+    if (c) {
+      try { localStorage.setItem("codigoAcceso", c.trim()); } catch (e) {}
+      return leerServidor(blob, false);
+    }
+  }
+  if (!r.ok) throw new Error(data.error || ("error " + r.status));
+  return data;
+}
+
+/* Con el servidor, DeepSeek informa los tokens reales: reemplazan la cota. */
+function usoReal(u) {
+  var pin = u.prompt_tokens || 0, pout = u.completion_tokens || 0;
+  var off = pin / 1e6 * 0.15 + pout / 1e6 * 0.60;
+  var peak = pin / 1e6 * 0.30 + pout / 1e6 * 1.20;
+  $("tokLine").textContent = pin.toLocaleString("es") + " + " + pout.toLocaleString("es") + " tok reales";
+  $("mNote").innerHTML = "DeepSeek facturó <b>" + pin.toLocaleString("es") + " tokens de entrada</b> y " +
+    pout.toLocaleString("es") + " de salida. A ese ritmo, 10.000 piezas cuestan <b>$" +
+    (off * 10000).toFixed(2) + "</b> fuera de hora pico y $" + (peak * 10000).toFixed(2) + " en hora pico.";
+}
+
 async function handle(file) {
   if (busy || !file) return;
   busy = true;
@@ -621,14 +663,17 @@ async function handle(file) {
 
     meter(send.width, send.height, gr.w, gr.h);
 
-    if (!sample) {
+    if (!sample && !BACKEND) {
       say("Recorte listo. La lectura automática no está disponible acá.", "err");
       return;
     }
 
     say("Leyendo la pieza…", "go");
     var blob = await new Promise(function (r) { send.toBlob(r, "image/jpeg", 0.9); });
-    var data = await sample.json(PROMPT, { images: blob, modelTier: "quick", cache: false });
+    var data = sample
+      ? await sample.json(PROMPT, { images: blob, modelTier: "quick", cache: false })
+      : await leerServidor(blob, true);
+    if (data && data.uso) usoReal(data.uso);
     var blocks = (data && Array.isArray(data.bloques)) ? data.bloques : [];
     render(blocks);
     say(blocks.length ? "Leído — revisá y corregí si hace falta" : "Sin texto legible");
@@ -671,6 +716,11 @@ renderCosts(0);
   if (sample) {
     $("badge").textContent = "lectura activa";
     $("badge").className = "badge live";
+  } else if (BACKEND) {
+    $("badge").textContent = "DeepSeek · servidor";
+    $("badge").className = "badge live";
+    say("Listo: sacá o subí una foto de la pieza.");
+    renderCosts(0);
   } else {
     $("badge").textContent = "modo local";
     say("Modo local: el preprocesado, el recorte y los costos funcionan igual.");

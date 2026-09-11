@@ -84,6 +84,36 @@ por separado.
 Dependencias: `opencv-python-headless`, `numpy`. Para `src/ocr.py` hace falta
 además el binario de Tesseract y `pytesseract`.
 
+## Servidor con DeepSeek
+
+`worker/` sirve la app y hace de intermediario con DeepSeek Flash. Existe
+porque la clave de API no puede vivir en la página: cualquiera la saca del
+navegador. La app manda solo el recorte; el prompt, el modelo y la clave
+quedan en el servidor.
+
+Probar en local (no instala nada, alcanza con Node 18+):
+
+```bash
+cd worker
+copy .dev.vars.example .dev.vars
+node dev.mjs
+```
+
+Pegar la clave de platform.deepseek.com en `.dev.vars` (no se sube al repo)
+y abrir http://localhost:8787.
+
+Publicar en Cloudflare, gratis a este volumen:
+
+```bash
+cd worker
+npx wrangler login
+npx wrangler secret put DEEPSEEK_API_KEY
+npx wrangler secret put ACCESS_CODE
+npx wrangler deploy
+```
+
+Sin `ACCESS_CODE`, cualquiera que tenga el link gasta tu saldo.
+
 ## Trampas ya pisadas
 
 Están documentadas en el código, pero vale tenerlas juntas:

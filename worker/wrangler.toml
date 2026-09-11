@@ -1,0 +1,14 @@
+name = "lector-piezas"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# La app se empaqueta como texto dentro del worker.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+# Secretos, se cargan con `npx wrangler secret put NOMBRE`:
+#   DEEPSEEK_API_KEY  clave de platform.deepseek.com (obligatoria)
+#   ACCESS_CODE       codigo que pide la app antes de leer (recomendado:
+#                     sin el, cualquiera con el link gasta tu saldo)
