@@ -62,8 +62,8 @@ instrucción y ~90 de respuesta.
 | Claude Sonnet 5 | $0.002228 | $22.28 |
 
 DeepSeek no publica su fórmula de tokens por imagen, solo el tope de 1.024:
-sus cifras son el máximo posible. Servido desde `worker/`, la app muestra
-los tokens reales que DeepSeek factura.
+sus cifras son el máximo posible. Con el backend, la app muestra los tokens
+reales que DeepSeek factura.
 
 Escalado por niveles (DeepSeek → Haiku → Sonnet), con validación local
 decidiendo cuándo subir: **≈ $5.75 por 10.000** en el escenario central. El
@@ -76,9 +76,10 @@ reparto entre niveles es una estimación, no un dato. Detalle completo en
 src/enhance.py         métodos de realce, cada uno con el porqué
 src/contact_sheet.py   corre las 13 variantes sobre una foto y arma la comparativa
 src/ocr.py             motor Tesseract (conservado como evidencia del descarte)
-app/lector.html        app web: preprocesado en el cliente + lectura con modelo
+frontend/              app Next.js (preprocesado en el navegador, validación, costos)
+backend/               API FastAPI que lee el recorte con DeepSeek Flash
+app/lector.html        versión de una sola página, publicada como demo en Claude
 app/costos.html        análisis de costos por motor
-worker/                servidor: sirve la app y llama a DeepSeek con la clave
 ```
 
 ## Uso
@@ -95,33 +96,56 @@ por separado.
 Dependencias: `opencv-python-headless`, `numpy`. Para `src/ocr.py` hace falta
 además el binario de Tesseract y `pytesseract`.
 
-## Servidor con DeepSeek
+## App: Next.js + FastAPI
 
-`worker/` sirve la app y hace de intermediario con DeepSeek Flash. Existe
-porque la clave de API no puede vivir en la página: cualquiera la saca del
-navegador. La app manda solo el recorte; el prompt, el modelo y la clave
-quedan en el servidor.
-
-Probar en local (no instala nada, alcanza con Node 18+):
-
-```bash
-cd worker
-copy .dev.vars.example .dev.vars
-node dev.mjs
+```
+frontend/   Next.js: captura, preprocesado en el navegador, validación y costos
+backend/    FastAPI: recibe el recorte y lo lee con DeepSeek Flash
 ```
 
-Pegar la clave de platform.deepseek.com en `.dev.vars` (no se sube al repo)
-y abrir http://localhost:8787.
+El backend existe porque la clave de API no puede vivir en el navegador:
+cualquiera la saca de ahí. El frontend manda solo el recorte; el prompt, el
+modelo y la clave quedan en el backend. Next reenvía `/api/*` al backend, así
+el navegador habla con un solo origen y no hace falta CORS.
 
-Publicar en Cloudflare, gratis a este volumen:
+### Correr en local
+
+Backend (puerto 8000):
 
 ```bash
-cd worker
-npx wrangler login
-npx wrangler secret put DEEPSEEK_API_KEY
-npx wrangler secret put ACCESS_CODE
-npx wrangler deploy
+cd backend
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn main:app --reload --port 8000
 ```
+
+Pegar la clave de platform.deepseek.com en `backend/.env` (no se sube al repo).
+
+Frontend (puerto 3000), en otra terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abrir http://localhost:3000. La insignia de arriba a la derecha dice si el
+backend está vivo y si tiene la clave cargada.
+
+Tests del backend (no gastan saldo: DeepSeek se reemplaza por un falso):
+
+```bash
+cd backend
+pytest -q
+```
+
+### Publicar
+
+- **Backend** en cualquier host de Python (Render, Railway, un VPS):
+  `uvicorn main:app --host 0.0.0.0 --port $PORT`, con `DEEPSEEK_API_KEY` y
+  `ACCESS_CODE` como variables de entorno.
+- **Frontend** en Vercel, con `BACKEND_URL` apuntando al backend publicado.
+  Se lee al compilar: si cambia, hay que volver a desplegar.
 
 Sin `ACCESS_CODE`, cualquiera que tenga el link gasta tu saldo.
 

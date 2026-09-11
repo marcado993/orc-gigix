@@ -13,5 +13,7 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Secretos locales del worker
-worker/.dev.vars
+
+# Secretos del backend
+backend/.env
+.pytest_cache/
