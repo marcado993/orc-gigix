@@ -9,6 +9,9 @@ cerámicos. El problema tiene dos marcas conviviendo en la misma pieza:
 
 Esa segunda marca es la difícil, y define todo el diseño.
 
+**Para instalarlo en otra máquina:** clonar, completar `.env` y
+`docker compose up -d --build`. Paso a paso en [GUIA.md](GUIA.md).
+
 ## Estado
 
 | Pieza | Estado |
@@ -136,10 +139,14 @@ Tests del backend (no gastan saldo: DeepSeek se reemplaza por un falso):
 
 ```bash
 cd backend
+pip install -r requirements-dev.txt
 pytest -q
 ```
 
 ### Publicar
+
+Lo más simple es Docker: ver [GUIA.md](GUIA.md). Alternativa sin Docker:
+
 
 - **Backend** en cualquier host de Python (Render, Railway, un VPS):
   `uvicorn main:app --host 0.0.0.0 --port $PORT`, con `DEEPSEEK_API_KEY` y

@@ -1,0 +1,29 @@
+# Levanta la app completa:  docker compose up -d --build
+# Antes, copiar .env.example como .env y completarlo (ver GUIA.md).
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Falta DEEPSEEK_API_KEY en el archivo .env}
+      ACCESS_CODE: ${ACCESS_CODE:-}
+    # Sin puertos publicados: solo el frontend le habla, por la red interna.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/salud', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${PUERTO:-3000}:3000"

@@ -17,3 +17,6 @@ Thumbs.db
 # Secretos del backend
 backend/.env
 .pytest_cache/
+
+# Configuracion de docker compose
+.env
