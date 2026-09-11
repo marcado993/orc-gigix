@@ -81,6 +81,20 @@ Arriba a la derecha tiene que aparecer el proveedor y el modelo, por ejemplo
 **DeepSeek · deepseek-flash**. Sacá o subí una foto de la pieza y los códigos
 aparecen en los campos de abajo.
 
+### Comparar modelos con la misma foto
+
+Abajo de todo está **Comparar modelos**. Se marcan los modelos a probar, se
+escriben los códigos correctos de la foto (uno por línea) y se aprieta
+**Comparar**. La misma foto va a cada modelo y la tabla muestra qué leyó cada
+uno, cuántos acertó, cuánto cobró de verdad y cuánto tardó.
+
+Cada foto nueva que se compara se suma al **acumulado**. Una foto sola no
+alcanza para decidir: con 20 a 30 piezas distintas, el acumulado dice qué
+modelo conviene. Cada modelo es una lectura aparte y se cobra por separado.
+
+Los modelos de un proveedor sin clave aparecen deshabilitados: pegá la clave
+en **Ajustes** y se activan.
+
 ### Probar otro proveedor, modelo o clave
 
 En el panel **Ajustes de lectura** se elige proveedor (DeepSeek u OpenAI) y

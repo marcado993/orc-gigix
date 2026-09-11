@@ -188,3 +188,36 @@ def test_modelo_sin_acceso(cliente):
     tc, _ = cliente(lambda req: httpx.Response(404, json={"error": "model_not_found"}))
     r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5.4-nano", "x-api-key": "sk-oa"})
     assert "gpt-5.4-nano" in r.json()["error"]
+
+
+def test_gpt5_nano_pide_esfuerzo_minimo(cliente):
+    tc, visto = cliente(ok_vacio)
+    subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5-nano", "x-api-key": "sk-oa"})
+    assert json.loads(visto["request"].content)["reasoning_effort"] == "minimal"
+
+
+def test_si_rechaza_el_esfuerzo_reintenta_con_low(cliente):
+    enviados = []
+
+    def handler(req):
+        cuerpo = json.loads(req.content)
+        enviados.append(cuerpo["reasoning_effort"])
+        if cuerpo["reasoning_effort"] == "minimal":
+            return httpx.Response(400, json={"error": {"message": "Unsupported value for reasoning_effort"}})
+        return respuesta_ok('{"bloques":[]}')
+
+    tc, _ = cliente(handler)
+    r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5-mini", "x-api-key": "sk-oa"})
+    assert r.status_code == 200 and enviados == ["minimal", "low"]
+
+
+def test_otro_400_no_reintenta(cliente):
+    enviados = []
+
+    def handler(req):
+        enviados.append(1)
+        return httpx.Response(400, json={"error": {"message": "image too small"}})
+
+    tc, _ = cliente(handler)
+    r = subir(tc, headers={"x-proveedor": "openai", "x-modelo": "gpt-5-nano", "x-api-key": "sk-oa"})
+    assert r.status_code == 502 and len(enviados) == 1

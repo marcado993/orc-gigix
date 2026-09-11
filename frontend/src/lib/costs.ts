@@ -69,8 +69,11 @@ export const ENGINES: Engine[] = [
   { id: "tess", name: "OCR local (Tesseract)", sub: "gratis, pero no leyó el grabado en las pruebas", in: 0, out: 0, flat: 0, tok: fijo(0), dead: true },
   { id: "ds-off", name: "DeepSeek Flash · fuera de pico", sub: "cifra al tope de 1.024 tokens por imagen", modelo: "deepseek-flash", in: 0.15, out: 0.6, tok: fijo(1024) },
   { id: "ds-peak", name: "DeepSeek Flash · hora pico", sub: "lun–vie, 01–04 y 06–10 UTC", in: 0.3, out: 1.2, tok: fijo(1024) },
-  { id: "luna", name: "GPT-5.6 Luna", sub: "el recomendado en OpenAI", modelo: "gpt-5.6-luna", in: 0.2, out: 1.2, tok: parches(1.2) },
-  { id: "nano54", name: "GPT-5.4 nano", sub: "mismo costo por imagen que Luna, generación anterior", modelo: "gpt-5.4-nano", in: 0.2, out: 1.25, tok: parches(1.2) },
+  { id: "luna", name: "GPT-5.6 Luna", sub: "el recomendado en OpenAI", modelo: "gpt-5.6-luna", in: 0.2, out: 1.2, tok: parches(1.2, 30000) },
+  { id: "nano54", name: "GPT-5.4 nano", sub: "mismo costo por imagen que Luna, generación anterior", modelo: "gpt-5.4-nano", in: 0.2, out: 1.25, tok: parches(1.2, 2500) },
+  { id: "nano5", name: "GPT-5 nano", sub: "el más barato, pero se retira el 11 dic 2026", modelo: "gpt-5-nano", in: 0.05, out: 0.4, tok: parches(1.5) },
+  { id: "nano41", name: "GPT-4.1 nano", sub: "se retira el 23 oct 2026; imagen 2,46×", modelo: "gpt-4.1-nano", in: 0.1, out: 0.4, tok: parches(2.46, 1536) },
+  { id: "mini5", name: "GPT-5 mini", sub: "se retira el 11 dic 2026", modelo: "gpt-5-mini", in: 0.25, out: 2, tok: parches(1.2) },
   { id: "mini41", name: "GPT-4.1 mini", sub: "multiplicador de imagen 1,62×", modelo: "gpt-4.1-mini", in: 0.4, out: 1.6, tok: parches(1.62, 1536) },
   { id: "4omini", name: "GPT-4o mini", sub: "tokens baratos, pero cada imagen cuenta como ~25.000", modelo: "gpt-4o-mini", in: 0.15, out: 0.6, tok: mosaicos(2833, 5667) },
   { id: "4o", name: "GPT-4o", sub: "modelo anterior, como referencia de comparación", modelo: "gpt-4o", in: 2.5, out: 10, tok: mosaicos(85, 170) },
@@ -85,12 +88,19 @@ export function costOf(e: Engine, w: number, h: number): number {
   return ((e.tok(w, h) + PROMPT_TOK) / 1e6) * e.in + (OUT_TOK / 1e6) * e.out;
 }
 
-/* Costo con los tokens que el proveedor efectivamente facturo. */
+/* Costo con los tokens que el proveedor efectivamente facturo. `modelo` es el
+   pedido; si viene el nombre con fecha que devuelve el proveedor, se busca el
+   prefijo mas largo, asi "gpt-4o-mini-2024..." no se confunde con gpt-4o. */
 export function costoReal(modelo: string, promptTok: number, outTok: number) {
   const precio = (inp: number, out: number) => (promptTok / 1e6) * inp + (outTok / 1e6) * out;
   if (modelo.startsWith("deepseek")) return { base: precio(0.15, 0.6), pico: precio(0.3, 1.2) };
-  const e = ENGINES.find(x => x.modelo && modelo.startsWith(x.modelo));
+  const e = ENGINES.filter(x => x.modelo && modelo.startsWith(x.modelo))
+    .sort((a, b) => (b.modelo?.length ?? 0) - (a.modelo?.length ?? 0))[0];
   return e ? { base: precio(e.in, e.out), pico: null } : null;
+}
+
+export function engineDe(modelo: string): Engine | undefined {
+  return ENGINES.find(e => e.modelo === modelo);
 }
 
 export function money(v: number): string {

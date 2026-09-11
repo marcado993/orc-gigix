@@ -6,53 +6,11 @@ import { costOf, ENGINES, FOTO_TIPICA, type Medidas, money, porCentavo, TYPICAL 
 import { type Ajustes, cargarAjustes, guardarAjustes, type Salud } from "@/lib/ajustes";
 import { validate } from "@/lib/validate";
 import PanelAjustes from "./PanelAjustes";
-import Proyeccion, { type Uso } from "./Proyeccion";
+import Proyeccion from "./Proyeccion";
+import Comparador from "./Comparador";
+import { type Bloque, type Lectura, leerPieza } from "@/lib/api";
 
-type Bloque = { texto: string; tipo: "grabado" | "tinta"; confianza: "alta" | "media" | "baja" };
-type Lectura = { bloques: Bloque[]; proveedor: string; modelo: string; uso: Uso | null };
 type Estado = { msg: string; kind?: "err" | "go" };
-
-const CODE_KEY = "codigoAcceso";
-
-function leerCodigo(): string {
-  try { return localStorage.getItem(CODE_KEY) ?? ""; } catch { return ""; }
-}
-function guardarCodigo(c: string) {
-  try { localStorage.setItem(CODE_KEY, c); } catch { /* sin almacenamiento: se vuelve a pedir */ }
-}
-
-/* El prompt vive en el backend: desde aca viajan la imagen y los ajustes. */
-async function leerPieza(blob: Blob, a: Ajustes, retry = true): Promise<Lectura> {
-  const fd = new FormData();
-  fd.append("archivo", blob, "pieza.jpg");
-  const headers: Record<string, string> = { "x-proveedor": a.proveedor, "x-modelo": a.modelo };
-  const code = leerCodigo();
-  if (code) headers["x-codigo"] = code;
-  const clave = a.claves[a.proveedor];
-  if (clave) headers["x-api-key"] = clave;
-
-  const r = await fetch("/api/leer", { method: "POST", body: fd, headers });
-  const text = await r.text();
-  let data: { error?: string; codigo?: boolean } & Partial<Lectura>;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(
-      r.status >= 500
-        ? "No se pudo contactar al backend. ¿Está corriendo en el puerto 8000?"
-        : "El servidor devolvió una respuesta ilegible.",
-    );
-  }
-  if (r.status === 401 && data.codigo && retry) {
-    const c = window.prompt("Código de acceso para leer piezas:");
-    if (c) {
-      guardarCodigo(c.trim());
-      return leerPieza(blob, a, false);
-    }
-  }
-  if (!r.ok) throw new Error(data.error ?? `error ${r.status}`);
-  return data as Lectura;
-}
 
 function Fila({ b, i }: { b: Bloque; i: number }) {
   const [valor, setValor] = useState(b.texto);
@@ -88,6 +46,8 @@ export default function Lector() {
   const [comparar, setComparar] = useState(false);
   const [cantidad, setCantidad] = useState(20000);
   const [hoy, setHoy] = useState(0.005); // 2 imagenes por centavo
+  const [recorteBlob, setRecorteBlob] = useState<Blob | null>(null);
+  const [fotoId, setFotoId] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -137,14 +97,17 @@ export default function Lector() {
         return;
       }
 
+      const blob = await toJpeg(send);
+      setRecorteBlob(blob);
+      setFotoId(n => n + 1);
       setEstado({ msg: `Leyendo la pieza con ${ajustes.modelo}…`, kind: "go" });
-      const data = await leerPieza(await toJpeg(send), ajustes);
+      const data = await leerPieza(blob, ajustes.proveedor, ajustes.modelo, ajustes.claves[ajustes.proveedor]);
       setLectura(data);
       setLecturaId(n => n + 1);
 
       if (full) {
         setEstado({ msg: "Leyendo también la foto entera, para comparar…", kind: "go" });
-        setLecturaEntera(await leerPieza(await toJpeg(full), ajustes));
+        setLecturaEntera(await leerPieza(await toJpeg(full), ajustes.proveedor, ajustes.modelo, ajustes.claves[ajustes.proveedor]));
       }
       setEstado({ msg: data.bloques.length ? "Leído — revisá y corregí si hace falta" : "Sin texto legible" });
     } catch (e) {
@@ -307,6 +270,10 @@ export default function Lector() {
             </div>
           </section>
         </div>
+
+        {salud && salud !== "caido" && ajustes && (
+          <Comparador salud={salud} claves={ajustes.claves} recorte={recorteBlob} fotoId={fotoId} cantidad={cantidad} />
+        )}
       </div>
     </>
   );

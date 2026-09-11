@@ -30,6 +30,8 @@ TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 # Solo modelos baratos con vision, mas gpt-4o para poder compararlo. Una lista
 # cerrada evita que alguien use la clave del servidor con un modelo caro.
+# gpt-5-nano y gpt-5-mini se retiran el 11 de diciembre de 2026 y gpt-4.1-nano
+# el 23 de octubre de 2026: estan para comparar, no para quedarse.
 PROVEEDORES = {
     "deepseek": {
         "nombre": "DeepSeek",
@@ -43,10 +45,19 @@ PROVEEDORES = {
         "url": "https://api.openai.com/v1/chat/completions",
         "env": "OPENAI_API_KEY",
         "consola": "platform.openai.com",
-        "modelos": ["gpt-5.6-luna", "gpt-5.4-nano", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4o"],
+        "modelos": [
+            "gpt-5.6-luna", "gpt-5.4-nano", "gpt-5-nano", "gpt-4.1-nano",
+            "gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4o",
+        ],
     },
 }
 PROVEEDOR_DEFECTO = "deepseek"
+
+# Los GPT-5 cobran su razonamiento como salida. Para transcribir no hace falta
+# pensar: se pide el minimo que acepta cada familia. Si un modelo rechaza el
+# valor, se reintenta una vez con "low", que aceptan todos.
+ESFUERZO_MINIMO = {"gpt-5-nano": "minimal", "gpt-5-mini": "minimal"}
+ESFUERZO_SEGURO = "low"
 
 PROMPT = """Eres un sistema de lectura de codigos de fabricacion sobre piezas ceramicas.
 
@@ -123,10 +134,9 @@ def armar_pedido(proveedor: str, modelo: str, tipo: str, datos: bytes) -> dict:
         # grabado se vuelve ilegible.
         imagen["detail"] = "high"
         if modelo.startswith("gpt-5"):
-            # Los GPT-5 razonan y cobran ese razonamiento como salida. Para
-            # transcribir no hace falta pensar mucho. Ademas rechazan
-            # temperature distinto de 1.
-            cuerpo["reasoning_effort"] = "low"
+            # Los GPT-5 razonan (ver ESFUERZO_MINIMO) y rechazan temperature
+            # distinto de 1, asi que no se manda.
+            cuerpo["reasoning_effort"] = ESFUERZO_MINIMO.get(modelo, ESFUERZO_SEGURO)
         else:
             cuerpo["temperature"] = 0
     else:
@@ -188,12 +198,16 @@ async def leer(
     if len(datos) > MAX_BYTES:
         return error("La imagen supera los 4 MB. Mandá el recorte, no la foto entera.", 413)
 
+    cuerpo = armar_pedido(proveedor, modelo, tipo, datos)
     try:
-        r = await http.post(
-            p["url"],
-            json=armar_pedido(proveedor, modelo, tipo, datos),
-            headers={"authorization": f"Bearer {key}"},
-        )
+        r = await http.post(p["url"], json=cuerpo, headers={"authorization": f"Bearer {key}"})
+        if (
+            r.status_code == 400
+            and "reasoning_effort" in r.text
+            and cuerpo.get("reasoning_effort") not in (None, ESFUERZO_SEGURO)
+        ):
+            cuerpo["reasoning_effort"] = ESFUERZO_SEGURO
+            r = await http.post(p["url"], json=cuerpo, headers={"authorization": f"Bearer {key}"})
     except httpx.HTTPError as e:
         return error(f"No se pudo contactar a {p['nombre']}: {e}", 502)
 

@@ -2,7 +2,7 @@
 
 import { costoReal, type Engine, type Medidas, money, porCentavo, proyectar } from "@/lib/costs";
 
-export type Uso = { prompt_tokens?: number; completion_tokens?: number };
+import type { Uso } from "@/lib/api";
 
 type Props = {
   engine: Engine | undefined;
